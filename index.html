@@ -397,7 +397,7 @@ footer{ padding:30px 0 52px; }
           <div class="details-body">
             <div class="kv"><div class="k">Functions</div><div class="v"><code>monopole/dipole/quadrupole_potential</code>, <code>_field</code>, plus <code>total_potential</code>/<code>total_field</code></div></div>
             <div class="kv"><div class="k">Inputs</div><div class="v"><code>atcharges (N,)</code>, <code>dipoles (N,3)</code>, <code>quadrupoles (N,3,3)</code>, atomic units</div></div>
-            <div class="kv"><div class="k">Edge cases</div><div class="v">Pairwise distances below <code>1e-12</code> replaced by <code>inf</code> — finite at a multipole's own site</div></div>
+            <div class="kv"><div class="k">Edge cases</div><div class="v">Distances below <code>1e-12</code> are treated as <code>inf</code> to suppress singular self-contributions</div></div>
             <div class="code-wrap">
               <button class="copy-btn" data-copy-target="code-mono">Copy</button>
               <pre class="code" id="code-mono">def monopole_potential(atcharges, atcoords, points):
@@ -565,13 +565,13 @@ return np.sum(term1 - term2, axis=1)</pre>
         <div class="m-head"><h3>Water</h3><span class="status open">● Under review</span></div>
         <div class="m-figure"><img src="assets/water.png" alt="Electrostatic potential of water evaluated with monopole, monopole plus dipole, and monopole plus dipole plus quadrupole expansions." loading="lazy" width="1800" height="470"></div><div class="m-figure-caption">Monopole → +dipole → +quadrupole electrostatic potential, water (a.u., Bohr)</div>
         <p>MBIS atomic multipoles from <code>water.fchk</code> are evaluated progressively through a <code>MultipoleExpansion</code> — monopole, then monopole&nbsp;+&nbsp;dipole, then monopole&nbsp;+&nbsp;dipole&nbsp;+&nbsp;quadrupole — showing how each higher-order moment reshapes the electrostatic potential.</p>
-        <div class="m-links"><a href="https://github.com/theochem/ffprime/pull/19/files" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
+        <div class="m-links"><a href="https://github.com/theochem/ffprime/blob/8ce7d84/examples/multipole_water.ipynb" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
       </div>
       <div class="molecule-card">
         <div class="m-head"><h3>Peptide</h3><span class="status open">● Under review</span></div>
         <div class="m-figure"><img src="assets/peptide.png" alt="Electrostatic potential of a peptide fragment evaluated with monopole, monopole plus dipole, and monopole plus dipole plus quadrupole expansions." loading="lazy" width="1800" height="470"></div><div class="m-figure-caption">Monopole → +dipole → +quadrupole electrostatic potential, peptide (a.u., Bohr)</div>
         <p>The same monopole → dipole → quadrupole progression, demonstrated on a chemically larger and more heterogeneous peptide system — multiple residues, mixed polar/nonpolar environments — using <code>peptide.fchk</code>.</p>
-        <div class="m-links"><a href="https://github.com/theochem/ffprime/pull/19/files" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
+        <div class="m-links"><a href="https://github.com/theochem/ffprime/blob/8ce7d84/examples/multipole_peptide.ipynb" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
       </div>
     </div>
     <p class="small-note mt">Water &rarr; peptide is a deliberate escalation in molecular complexity, not a claim about performance or scalability — no benchmarking data for either notebook exists in the repository.</p>
@@ -676,6 +676,10 @@ return np.sum(term1 - term2, axis=1)</pre>
     </div>
   </div>
 </section>
+
+<div class="container" style="padding:20px 32px;">
+  <p class="small-note" style="font-style:normal; font-size:13px; color:var(--ink-soft); max-width:660px;">Next steps include exposing electrostatic evaluation directly through <code>MultipoleExpansion</code>, extending the implementation to higher-order moments, and adding quantitative benchmarking. The Water and Peptide demonstrations remain under review in <a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19</a>.</p>
+</div>
 
 <!-- ============ 08 FINAL REFLECTION + ACK ============ -->
 <section>
