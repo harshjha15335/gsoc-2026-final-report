@@ -1,0 +1,808 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GSoC 2026 — Multipole Electrostatics in FFPrime | Harsh Jha</title>
+<meta name="description" content="Final Google Summer of Code 2026 report documenting the implementation and validation of multipole electrostatics in FFPrime.">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ============ SIGNAL / STRUCTURE — TOKENS ============ */
+:root{
+  --paper:#f7f5ef;
+  --paper-raised:#eeece1;
+  --ink:#171717;
+  --ink-soft:#625f59;
+  --ink-faint:#8d897e;
+  --border:#dedacd;
+  --border-strong:#cbc5b2;
+  --signal:#7fa7a8;
+  --signal-soft:#e7efef;
+  --signal-ink:#174b5a;
+  --status-merged:#3c6e4f;
+  --status-open:#9c6a1f;
+  --code-bg:#171717;
+  --code-ink:#f7f5ef;
+  --code-accent:#9fd3c7;
+  --code-string:#e0b988;
+  --code-comment:#8a8272;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171717; --paper-raised:#201f1c; --ink:#f7f5ef; --ink-soft:#c9c4b8; --ink-faint:#948f82;
+    --border:#33322c; --border-strong:#454339; --signal:#92b9ba; --signal-soft:#1e2e30; --signal-ink:#7fc3d6;
+    --status-merged:#8ecb9f; --status-open:#e0b06b;
+    --code-bg:#0d0d0d; --code-ink:#f7f5ef; --code-accent:#8fd0c2; --code-string:#d9ab77; --code-comment:#726a5a;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171717; --paper-raised:#201f1c; --ink:#f7f5ef; --ink-soft:#c9c4b8; --ink-faint:#948f82;
+  --border:#33322c; --border-strong:#454339; --signal:#92b9ba; --signal-soft:#1e2e30; --signal-ink:#7fc3d6;
+  --status-merged:#8ecb9f; --status-open:#e0b06b;
+  --code-bg:#0d0d0d; --code-ink:#f7f5ef; --code-accent:#8fd0c2; --code-string:#d9ab77; --code-comment:#726a5a;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto;}
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+body{ margin:0; background:var(--paper); color:var(--ink); font-family:"Inter", ui-sans-serif, system-ui, sans-serif; font-size:16.5px; line-height:1.62; -webkit-font-smoothing:antialiased; }
+::selection{ background:var(--signal-soft); color:var(--signal-ink); }
+a{ color:var(--signal-ink); text-decoration-color: var(--border-strong); text-underline-offset:3px; }
+a:hover{ text-decoration-color: var(--signal-ink); }
+a:focus-visible, button:focus-visible, summary:focus-visible, [tabindex]:focus-visible{ outline:2px solid var(--signal-ink); outline-offset:2px; border-radius:2px; }
+h1,h2,h3,h4{ font-family:"DM Serif Display", Georgia, serif; font-weight:400; color:var(--ink); text-wrap:balance; margin:0; }
+code, .mono{ font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace; }
+.container{ max-width:900px; margin:0 auto; padding:0 32px; }
+.prose{ max-width:660px; }
+.prose p{ margin:0 0 1em; color:var(--ink-soft); }
+.prose p:last-child{ margin-bottom:0; }
+img,svg{ max-width:100%; }
+table{ border-collapse:collapse; width:100%; }
+.scroll-x{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+#progress{ position:fixed; top:0; left:0; height:2px; width:0%; background:var(--signal); z-index:120; transition:width 0.1s linear; }
+
+/* ============ CHAPTER RAIL (desktop persistent nav) ============ */
+.rail{
+  position:fixed; top:0; left:0; height:100vh; width:236px;
+  border-right:1px solid var(--border); background:var(--paper);
+  padding:26px 20px 20px; display:flex; flex-direction:column; z-index:90;
+  overflow-y:auto;
+}
+.rail-brand{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:0.06em; color:var(--ink-faint); text-decoration:none; line-height:1.5; margin-bottom:22px; padding-bottom:18px; border-bottom:1px solid var(--border); }
+.rail-brand b{ display:block; color:var(--ink); font-weight:600; font-size:12.5px; }
+.rail-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; flex:1; }
+.rail-list a{
+  display:flex; align-items:baseline; gap:8px; padding:7px 9px; border-radius:3px;
+  font-size:12.8px; color:var(--ink-soft); text-decoration:none; border-left:2px solid transparent;
+  transition:color 0.15s, border-color 0.15s, background 0.15s;
+}
+.rail-list a::before{ content:attr(data-num); font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-faint); }
+.rail-list a:hover{ color:var(--ink); }
+.rail-list a.active{ color:var(--signal-ink); font-weight:600; border-left-color:var(--signal); background:var(--signal-soft); }
+.rail-list a.active::before{ color:var(--signal-ink); }
+.rail-foot{ margin-top:18px; padding-top:16px; border-top:1px solid var(--border); font-family:"IBM Plex Mono",monospace; font-size:11px; }
+.rail-foot a{ color:var(--ink-soft); }
+
+.mobile-toggle{
+  display:none; position:fixed; top:16px; left:16px; z-index:110;
+  background:var(--paper); border:1px solid var(--border-strong); border-radius:3px;
+  font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.05em; color:var(--ink);
+  padding:8px 12px; cursor:pointer; align-items:center; gap:6px;
+}
+.scrim{ display:none; position:fixed; inset:0; background:rgba(20,18,14,0.4); z-index:85; }
+.scrim.open{ display:block; }
+
+.content{ margin-left:236px; }
+
+@media (max-width: 960px){
+  .rail{ transform:translateX(-100%); transition:transform 0.25s ease; box-shadow:0 0 0 1px var(--border); width:78vw; max-width:300px; }
+  .rail.open{ transform:translateX(0); }
+  .mobile-toggle{ display:inline-flex; }
+  .content{ margin-left:0; }
+  .container{ padding:0 22px; }
+}
+
+/* ============ REVEAL-ON-SCROLL ============ */
+.reveal{ opacity:0; transform:translateY(14px); transition:opacity 0.55s ease, transform 0.55s ease; }
+.reveal.in-view{ opacity:1; transform:translateY(0); }
+@media (prefers-reduced-motion: reduce){ .reveal{ opacity:1; transform:none; transition:none; } }
+
+/* ============ HERO (compact, animated) ============ */
+.hero{ padding:52px 0 30px; border-bottom:1px solid var(--border); position:relative; overflow:hidden; }
+.hero::before{
+  content:""; position:absolute; top:-40px; right:-60px; width:280px; height:280px; pointer-events:none;
+  background-image: radial-gradient(circle, var(--border-strong) 1px, transparent 1px);
+  background-size:16px 16px; opacity:0.5; mask-image:radial-gradient(circle, black, transparent 70%);
+}
+.hero-meta-top{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.1em; color:var(--ink-faint); text-transform:uppercase; margin-bottom:14px; display:flex; gap:8px; flex-wrap:wrap; position:relative; }
+.hero-meta-top span:not(:last-child)::after{ content:"·"; margin-left:8px; color:var(--border-strong); }
+.hero h1{ font-size:clamp(1.85rem, 4.4vw, 2.85rem); line-height:1.04; letter-spacing:-0.01em; position:relative; }
+.hero h1 em{ font-style:italic; color:var(--signal-ink); }
+.hero-statement{ max-width:600px; font-size:16.5px; color:var(--ink-soft); margin-top:12px; position:relative; }
+.hero-byline{ display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-top:24px; padding-top:18px; border-top:1px solid var(--border); position:relative; }
+.hero-byline .who{ font-family:"DM Serif Display",serif; font-size:22px; font-weight:400; color:var(--ink); }
+.hero-byline .role{ font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink-faint); }
+.hero-mentors{ margin-top:8px; font-size:12.5px; color:var(--ink-faint); position:relative; }
+.hero-mentors .label{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); margin-right:8px; }
+.hero-mentors .names{ color:var(--ink-soft); font-weight:500; }
+.hero-links{ margin-top:14px; display:flex; gap:16px; flex-wrap:wrap; position:relative; }
+.hero-links a{ font-family:"IBM Plex Mono",monospace; font-size:12px; text-decoration:none; color:var(--ink); border-bottom:1px solid var(--border-strong); padding-bottom:1px; font-weight:500; }
+.hero-links a:hover{ color:var(--signal-ink); border-bottom-color:var(--signal-ink); }
+
+/* ============ SECTION SCAFFOLD ============ */
+section{ padding:42px 0; border-bottom:1px solid var(--border); }
+section:last-of-type{ border-bottom:none; }
+.section-head{ margin-bottom:22px; max-width:660px; }
+.section-num{ font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--signal-ink); letter-spacing:0.08em; margin-bottom:8px; }
+.section-head h2{ font-size:clamp(1.35rem, 2.4vw, 1.8rem); }
+.section-head .dek{ margin-top:8px; font-size:14px; color:var(--ink-soft); }
+
+/* ============ STATUS SYSTEM ============ */
+.status{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; font-weight:600; white-space:nowrap; }
+.status.merged{ color:var(--status-merged); }
+.status.open{ color:var(--status-open); }
+.status.closed{ color:var(--ink-faint); font-weight:500; }
+
+/* ============ DETAILS / ACCORDION ============ */
+details.box{ border:1px solid var(--border); border-radius:4px; margin-top:12px; background:var(--paper); }
+details.box summary{ list-style:none; cursor:pointer; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; font-weight:600; font-size:13.5px; color:var(--ink); }
+details.box summary::-webkit-details-marker{ display:none; }
+details.box .details-body{ padding:0 16px 16px; border-top:1px solid var(--border); padding-top:14px; }
+details.box[open]{ background:var(--paper-raised); }
+.chev{ font-family:"IBM Plex Mono",monospace; color:var(--ink-faint); transition:transform 0.18s ease; font-size:13px; flex-shrink:0; }
+details[open] .chev{ transform:rotate(45deg); }
+
+details.inline{ margin-top:8px; }
+details.inline summary{ list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600; color:var(--signal-ink); padding:0; }
+details.inline summary::-webkit-details-marker{ display:none; }
+details.inline .details-body{ border-top:1px solid var(--border); margin-top:12px; padding-top:14px; }
+
+/* ============ PROBLEM FLOW (rail diagram) ============ */
+.flow-rail{ margin:22px 0 4px; padding-left:18px; border-left:2px solid var(--border-strong); display:flex; flex-direction:column; gap:12px; }
+.flow-rail .fr-row{ position:relative; }
+.flow-rail .fr-row::before{ content:""; position:absolute; left:-23px; top:6px; width:7px; height:7px; border-radius:50%; background:var(--signal); }
+.flow-rail .fr-step{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:0.05em; text-transform:uppercase; color:var(--ink); font-weight:700; }
+.flow-rail .fr-note{ font-size:13px; color:var(--ink-faint); font-style:italic; margin-top:2px; }
+
+/* ============ WHAT I BUILT — editorial list ============ */
+.built-list{ display:flex; flex-direction:column; }
+.built-item{ padding:22px 0; }
+.built-connector{ text-align:center; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; font-size:13px; padding:2px 0; }
+.built-top{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.built-num{ font-family:"IBM Plex Mono",monospace; color:var(--signal-ink); font-size:12.5px; font-weight:600; }
+.built-top h3{ font-size:19px; letter-spacing:0.01em; flex:1; min-width:180px; }
+.built-keywords{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.07em; text-transform:uppercase; color:var(--ink-faint); margin:9px 0 12px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+.built-desc{ font-size:14.5px; color:var(--ink-soft); margin:0 0 10px; max-width:640px; }
+.built-meta{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; font-size:12px; }
+.built-meta a{ font-family:"IBM Plex Mono",monospace; }
+.built-item .kv{ display:grid; grid-template-columns:110px 1fr; gap:8px; font-size:13.5px; margin-bottom:9px; }
+.built-item .kv .k{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px; }
+.built-item .kv .v{ color:var(--ink-soft); }
+
+/* code + copy button */
+.code-wrap{ position:relative; }
+pre.code{ background:var(--code-bg); color:var(--code-ink); border-radius:5px; padding:14px 17px; font-family:"IBM Plex Mono",monospace; font-size:12px; line-height:1.6; overflow-x:auto; margin:10px 0; }
+pre.code .cm{ color:var(--code-comment); }
+pre.code .kw{ color:var(--code-accent); }
+.code-caption{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-faint); margin:-2px 0 8px; }
+.copy-btn{
+  position:absolute; top:8px; right:8px; font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.05em;
+  text-transform:uppercase; background:transparent; color:var(--code-ink); border:1px solid rgba(244,241,234,0.25);
+  border-radius:3px; padding:4px 9px; cursor:pointer; opacity:0.7; transition:opacity 0.15s, border-color 0.15s;
+}
+.copy-btn:hover{ opacity:1; border-color:var(--signal); }
+.copy-btn.copied{ color:var(--signal); border-color:var(--signal); opacity:1; }
+
+/* ============ PIPELINE (compact) ============ */
+.pipeline-strip{ display:flex; align-items:center; gap:0; flex-wrap:wrap; border:1px solid var(--border); border-radius:6px; background:var(--paper-raised); padding:16px 16px; margin-bottom:24px; }
+.pipeline-strip .p-step{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:0.03em; text-transform:uppercase; color:var(--ink); background:var(--paper); border:1px solid var(--border-strong); border-radius:3px; padding:6px 12px; white-space:nowrap; }
+.pipeline-strip .p-arrow{ color:var(--signal); padding:0 8px; font-size:13px; }
+.pipeline-strip.small{ padding:12px 14px; margin:14px 0 0; background:var(--paper); }
+.pipeline-strip.small .p-step{ font-size:11px; padding:5px 10px; text-transform:none; letter-spacing:0; font-family:"DM Serif Display",serif; font-style:italic; }
+@media (max-width:760px){ .pipeline-strip{ flex-direction:column; align-items:stretch; } .pipeline-strip .p-arrow{ text-align:center; padding:2px 0; transform:rotate(90deg); } }
+
+/* ============ STORY BLOCKS ============ */
+.story{ padding:22px 0; border-top:1px solid var(--border); }
+.story:first-of-type{ border-top:none; padding-top:0; }
+.story-eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px; }
+.story h4{ font-size:18px; margin-bottom:10px; }
+.pull-quote{ font-family:"DM Serif Display",serif; font-style:italic; font-weight:400; font-size:22px; line-height:1.35; color:var(--signal-ink); max-width:600px; margin:8px 0 16px; }
+.story-grid{ display:grid; grid-template-columns:100px 1fr; gap:6px 16px; font-size:13.5px; margin-top:6px; }
+.story-grid .sl{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--ink-faint); padding-top:2px; }
+.story-grid .sv{ color:var(--ink-soft); }
+@media (max-width:600px){ .story-grid{ grid-template-columns:1fr; gap:2px; } }
+
+/* ============ VALIDATION CHECKLIST ============ */
+.check-row{ display:flex; gap:22px; flex-wrap:wrap; margin-bottom:18px; }
+.check-item{ font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:0.05em; text-transform:uppercase; font-weight:600; color:var(--ink); }
+.check-item .tick{ color:var(--status-merged); margin-right:6px; }
+
+/* ============ MOLECULE TWO-COL ============ */
+.molecule-cols{ display:grid; grid-template-columns:1fr 1fr; gap:0; border-top:1px solid var(--border); margin-top:8px; }
+@media (max-width:700px){ .molecule-cols{ grid-template-columns:1fr; } }
+.molecule-card{ padding:20px 22px 22px; border-right:1px solid var(--border); }
+.molecule-card:last-child{ border-right:none; }
+@media (max-width:700px){ .molecule-card{ border-right:none; border-bottom:1px solid var(--border); } .molecule-card:last-child{ border-bottom:none; } }
+.molecule-card .m-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+.molecule-card .m-head h3{ font-size:18px; }
+.molecule-card .m-figure{
+  border:1px solid var(--border); border-radius:4px; margin-bottom:10px;
+  background:#ffffff; overflow:hidden;
+}
+.molecule-card .m-figure img{ display:block; width:100%; height:auto; }
+.molecule-card .m-figure-caption{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.05em; margin:0 0 14px; }
+.molecule-card .m-figure .m-mono{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-faint); letter-spacing:0.07em; text-transform:uppercase; background:var(--paper); padding:3px 8px; border:1px solid var(--border); border-radius:3px; }
+.molecule-card p{ font-size:13.5px; color:var(--ink-soft); margin:0 0 14px; }
+.m-links{ display:flex; gap:16px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:12px; }
+.m-links a{ font-weight:600; }
+
+/* ============ COMPACT TIMELINE ============ */
+.timeline-h{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; border-top:2px solid var(--border-strong); margin-top:6px; }
+.tl-month{ padding:16px 18px 0; border-right:1px solid var(--border); position:relative; }
+.tl-month:last-child{ border-right:none; }
+.tl-month::before{ content:""; position:absolute; top:-2px; left:18px; width:22px; height:2px; background:var(--signal); }
+.tl-month .tl-label{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--signal-ink); margin-bottom:4px; }
+.tl-month h4{ font-size:15px; margin-bottom:10px; }
+.tl-month ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:6px; }
+.tl-month li{ font-size:12.5px; color:var(--ink-soft); }
+.tl-month li a{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600; }
+@media (max-width:760px){ .timeline-h{ grid-template-columns:1fr; } .tl-month{ border-right:none; border-bottom:1px solid var(--border); padding-bottom:14px; } }
+
+/* ============ PR LEDGER ============ */
+.ledger{ margin-top:18px; border:1px solid var(--border); border-radius:5px; overflow:hidden; }
+.ledger-group-label{ font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); padding:9px 16px 5px; background:var(--paper-raised); }
+.ledger-row{ display:grid; grid-template-columns:48px 1fr auto; gap:14px; align-items:center; padding:10px 16px; text-decoration:none; color:var(--ink); border-top:1px solid var(--border); transition:background 0.12s; }
+.ledger-row:hover{ background:var(--paper-raised); }
+.ledger-num{ font-family:"IBM Plex Mono",monospace; font-size:12.5px; color:var(--signal-ink); font-weight:600; }
+.ledger-title{ font-size:13.5px; font-weight:500; }
+@media (max-width:560px){ .ledger-row{ grid-template-columns:1fr auto; } .ledger-num{ display:none; } }
+
+/* ============ LESSON EDITORIAL ============ */
+.lesson-list{ display:flex; flex-direction:column; }
+.lesson{ padding:20px 0; border-top:1px solid var(--border); display:grid; grid-template-columns:60px 1fr; gap:20px; }
+.lesson:first-child{ border-top:none; padding-top:0; }
+.lesson .l-num{ font-family:"DM Serif Display",serif; font-size:26px; color:var(--border-strong); font-weight:400; line-height:1; }
+.lesson .l-eyebrow{ font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px; }
+.lesson h4{ font-family:"DM Serif Display",serif; font-style:italic; font-weight:400; font-size:19px; margin-bottom:8px; line-height:1.3; color:var(--signal-ink); }
+.lesson p{ font-size:14px; color:var(--ink-soft); margin:0; max-width:600px; }
+@media (max-width:600px){ .lesson{ grid-template-columns:1fr; gap:6px; } }
+
+/* ============ STATE TWO-COL ============ */
+.state-cols{ display:grid; grid-template-columns:1fr 1fr; gap:30px; }
+@media (max-width:700px){ .state-cols{ grid-template-columns:1fr; gap:20px; } }
+.state-col h4{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.07em; text-transform:uppercase; margin-bottom:12px; color:var(--ink-faint); padding-bottom:10px; border-bottom:1px solid var(--border); }
+.state-col.done h4{ color:var(--status-merged); }
+.state-col.next h4{ color:var(--status-open); }
+.state-col ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:9px; }
+.state-col li{ font-size:13.5px; color:var(--ink-soft); padding-left:20px; position:relative; }
+.state-col.done li::before{ content:"✓"; position:absolute; left:0; color:var(--status-merged); font-weight:700; }
+.state-col.next li::before{ content:"○"; position:absolute; left:0; color:var(--status-open); }
+
+/* ============ FINAL REFLECTION ============ */
+.reflect-flow{ display:flex; flex-direction:column; gap:0; margin-top:8px; }
+.reflect-row{ display:grid; grid-template-columns:120px 1fr; gap:20px; padding:16px 0; border-top:1px solid var(--border); }
+.reflect-row:first-child{ border-top:none; }
+.reflect-label{ font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--signal-ink); font-weight:600; padding-top:2px; }
+.reflect-row p{ font-size:14.5px; color:var(--ink-soft); margin:0; max-width:600px; }
+@media (max-width:560px){ .reflect-row{ grid-template-columns:1fr; gap:4px; } }
+
+/* ============ FOOTER ============ */
+footer{ padding:30px 0 52px; }
+.ack-row{ display:flex; flex-wrap:wrap; gap:6px 18px; margin-top:12px; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-soft); }
+.footer-bottom{ margin-top:24px; padding-top:16px; border-top:1px solid var(--border); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:11.5px; color:var(--ink-faint); font-family:"IBM Plex Mono",monospace; }
+
+.mt{ margin-top:22px; }
+.small-note{ font-size:12px; color:var(--ink-faint); font-style:italic; }
+
+/* ============ PRINT ============ */
+@media print{
+  .rail, .mobile-toggle, .scrim, #progress, .copy-btn{ display:none !important; }
+  .content{ margin-left:0 !important; }
+  body{ background:#fff; color:#000; font-size:11pt; }
+  a{ color:#000; text-decoration:underline; }
+  a[href^="http"]::after{ content:" (" attr(href) ")"; font-size:8pt; color:#444; }
+  .hero{ padding-top:0; }
+  section{ padding:14px 0; break-inside:avoid; }
+  details{ break-inside:avoid; }
+  .molecule-card .m-figure img{ max-width:100%; }
+}
+</style>
+
+<div id="progress"></div>
+
+<button class="mobile-toggle" id="navToggle" aria-expanded="false" aria-controls="rail">☰ MENU</button>
+<div class="scrim" id="scrim"></div>
+
+<nav class="rail" id="rail">
+  <a class="rail-brand" href="#top"><b>GSoC 2026</b>Theochem / FFPrime</a>
+  <ul class="rail-list" id="railList">
+    <li><a href="#top" data-target="top" data-num="—">Overview</a></li>
+    <li><a href="#problem" data-target="problem" data-num="01">Problem</a></li>
+    <li><a href="#implementation" data-target="implementation" data-num="02">Implementation</a></li>
+    <li><a href="#validation" data-target="validation" data-num="04">Validation</a></li>
+    <li><a href="#examples" data-target="examples" data-num="05">Examples</a></li>
+    <li><a href="#timeline" data-target="timeline" data-num="06">Timeline</a></li>
+    <li><a href="#timeline-ledger" data-target="timeline-ledger" data-num="06">Contributions</a></li>
+    <li><a href="#learnings" data-target="learnings" data-num="07">Learnings</a></li>
+  </ul>
+  <div class="rail-foot"><a href="https://github.com/theochem/ffprime" target="_blank" rel="noopener">theochem/ffprime →</a></div>
+</nav>
+
+<div class="content">
+<main>
+
+<!-- ============ HERO + PROJECT INTRO ============ -->
+<section class="hero" id="top">
+  <div class="container">
+    <div class="hero-meta-top reveal">
+      <span>Google Summer of Code · 2026</span>
+      <span>Theochem / FFPrime</span>
+    </div>
+    <h1 class="reveal">Multipole Electrostatics<br><em>in FFPrime</em></h1>
+    <p class="hero-statement reveal">A new electrostatics module for FFPrime — Cartesian &amp; spherical multipole potentials and fields, a unifying container, analysis utilities, and the validation to prove it.</p>
+    <div class="hero-byline reveal">
+      <span class="who">Harsh Jha</span>
+      <span class="role">GSoC Contributor · Theochem</span>
+    </div>
+    <div class="hero-mentors reveal"><span class="label">Mentors</span><span class="names">Professor Esteban Vohringer &middot; Carlos &middot; Omid Hosseinzadeh</span></div>
+    <div class="hero-links reveal">
+      <a href="https://github.com/theochem/ffprime" target="_blank" rel="noopener">View Repository →</a>
+      <a href="#timeline-ledger">View PRs →</a>
+      <a href="#examples">View Notebooks →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 THE PROBLEM ============ -->
+<section id="problem">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">01 &middot; The Problem</div>
+      <h2>Why FFPrime needs multipole electrostatics</h2>
+    </div>
+    <div class="prose reveal">
+      <p><a href="https://github.com/theochem/ffprime" target="_blank" rel="noopener">FFPrime</a> derives molecular-mechanics force-field parameters directly from a quantum-chemical electron density, using Atoms-in-Molecules (AIM) partitioning rather than empirical fitting. A single point charge per atom — the simplest possible electrostatic model — can't represent the anisotropy of a lone pair or a polarized bond, and AIM partitioning already produces richer information than that: dipole and quadrupole moments fall directly out of the same density partitioning.</p>
+      <p>What was missing was a way to <em>use</em> that information: a module turning atomic multipole moments into an actual electrostatic potential and field, in both representations the field commonly uses — Cartesian tensors and real spherical harmonics — with the numerical rigor scientific software demands.</p>
+    </div>
+    <div class="flow-rail reveal">
+      <div class="fr-row"><div class="fr-step">Point charges</div><div class="fr-note">insufficient for anisotropic electrostatics</div></div>
+      <div class="fr-row"><div class="fr-step">AIM partitioning</div><div class="fr-note">already provides multipole moments</div></div>
+      <div class="fr-row"><div class="fr-step">FFPrime</div><div class="fr-note">needed a way to use them</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 WHAT I BUILT ============ -->
+<section id="implementation">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">02 &middot; What I Built</div>
+      <h2>Four pieces, one module</h2>
+    </div>
+
+    <div class="built-list">
+
+      <div class="built-item reveal">
+        <div class="built-top"><span class="built-num">01</span><h3>Cartesian Multipoles</h3><span class="status merged">✓ Merged</span></div>
+        <div class="built-keywords">Potential &middot; Field &middot; Vectorization</div>
+        <p class="built-desc">Given atomic charges, dipole vectors, and traceless quadrupole tensors, <a href="https://github.com/theochem/ffprime/blob/main/ffprime/electrostatics/cartesian.py" target="_blank" rel="noopener"><code>cartesian.py</code></a> computes the electrostatic potential and field at an arbitrary array of field points — fully vectorized with <code>np.einsum</code>, no per-atom Python loop.</p>
+        <div class="built-meta"><a href="https://github.com/theochem/ffprime/pull/13" target="_blank" rel="noopener">PR #13</a><a href="https://github.com/theochem/ffprime/pull/14" target="_blank" rel="noopener">PR #14</a><a href="https://github.com/theochem/ffprime/blob/main/tests/test_multipole.py" target="_blank" rel="noopener">test_multipole.py</a></div>
+        <details class="inline">
+          <summary>Technical details <span class="chev">+</span></summary>
+          <div class="details-body">
+            <div class="kv"><div class="k">Functions</div><div class="v"><code>monopole/dipole/quadrupole_potential</code>, <code>_field</code>, plus <code>total_potential</code>/<code>total_field</code></div></div>
+            <div class="kv"><div class="k">Inputs</div><div class="v"><code>atcharges (N,)</code>, <code>dipoles (N,3)</code>, <code>quadrupoles (N,3,3)</code>, atomic units</div></div>
+            <div class="kv"><div class="k">Edge cases</div><div class="v">Pairwise distances below <code>1e-12</code> replaced by <code>inf</code> — finite at a multipole's own site</div></div>
+            <div class="code-wrap">
+              <button class="copy-btn" data-copy-target="code-mono">Copy</button>
+              <pre class="code" id="code-mono">def monopole_potential(atcharges, atcoords, points):
+    <span class="cm"># V(r) = sum_i  q_i / |r - r_i|</span>
+    _, _, safe_r = compute_displacement(atcoords, points)
+    return np.sum(atcharges[np.newaxis, :] / safe_r, axis=1)</pre>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="built-connector">↓</div>
+
+      <div class="built-item reveal">
+        <div class="built-top"><span class="built-num">02</span><h3>Spherical Representation</h3><span class="status merged">✓ Merged</span></div>
+        <div class="built-keywords">Stone convention &middot; Conversions &middot; Evaluation</div>
+        <p class="built-desc"><a href="https://github.com/theochem/ffprime/blob/main/ffprime/electrostatics/spherical.py" target="_blank" rel="noopener"><code>spherical.py</code></a> adds the real spherical-harmonic representation used by force fields like AMOEBA: bidirectional Cartesian&#8596;spherical conversion for dipoles and quadrupoles, plus direct potential evaluation without a Cartesian round-trip.</p>
+        <div class="built-meta"><a href="https://github.com/theochem/ffprime/pull/15" target="_blank" rel="noopener">PR #15</a><a href="https://github.com/theochem/ffprime/blob/main/tests/test_spherical.py" target="_blank" rel="noopener">test_spherical.py</a></div>
+        <details class="inline">
+          <summary>Technical details <span class="chev">+</span></summary>
+          <div class="details-body">
+            <div class="kv"><div class="k">Convention</div><div class="v">Stone, <em>Theory of Intermolecular Forces</em> — Q10=p_z, Q11c=p_x, Q11s=p_y; quadrupole off-diagonals carry a √3 factor</div></div>
+            <div class="kv"><div class="k">Functions</div><div class="v"><code>dipole/quadrupole_cartesian_to_spherical</code> (+ inverse), <code>spherical_total_potential/field</code></div></div>
+            <div class="kv"><div class="k">Field path</div><div class="v">Converts to Cartesian and reuses the tested <code>quadrupole_field</code>, rather than a separate spherical-field derivation</div></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="built-connector">↓</div>
+
+      <div class="built-item reveal">
+        <div class="built-top"><span class="built-num">03</span><h3>Expansion + Analysis</h3><span class="status merged">✓ Merged</span></div>
+        <div class="built-keywords">MultipoleExpansion &middot; Projection &middot; Similarity &middot; RMS</div>
+        <p class="built-desc"><a href="https://github.com/theochem/ffprime/blob/main/ffprime/electrostatics/expansion.py" target="_blank" rel="noopener"><code>expansion.py</code></a> adds <code>MultipoleExpansion</code>, a typed container built via <code>from_cartesian()</code>/<code>from_spherical()</code>. <a href="https://github.com/theochem/ffprime/blob/main/ffprime/electrostatics/analysis.py" target="_blank" rel="noopener"><code>analysis.py</code></a> adds three field-comparison utilities: projection, cosine similarity, RMS deviation.</p>
+        <div class="built-meta"><a href="https://github.com/theochem/ffprime/pull/18" target="_blank" rel="noopener">PR #18</a><a href="https://github.com/theochem/ffprime/blob/main/tests/test_analysis.py" target="_blank" rel="noopener">test_analysis.py</a></div>
+        <details class="inline">
+          <summary>Technical details <span class="chev">+</span></summary>
+          <div class="details-body">
+            <div class="kv"><div class="k">Attributes</div><div class="v"><code>atcoords</code>/<code>atcharges</code>/<code>atdipoles</code>/<code>atquadrupoles</code> — IOData naming, adopted after reviewer feedback</div></div>
+            <div class="kv"><div class="k">Container only</div><div class="v">No <code>.potential()</code>/<code>.field()</code> method yet — evaluation still calls <code>cartesian.py</code>/<code>spherical.py</code> directly</div></div>
+            <div class="kv"><div class="k">analysis.py</div><div class="v"><code>project_field</code>, <code>cosine_similarity</code>, <code>rms_deviation</code></div></div>
+            <div class="code-wrap">
+              <button class="copy-btn" data-copy-target="code-expansion">Copy</button>
+              <pre class="code" id="code-expansion">expansion = MultipoleExpansion.from_spherical(
+    atcoords=atcoords, atcharges=atcharges,
+    atdipoles=spherical_dipoles,      <span class="cm"># (N, 3)</span>
+    atquadrupoles=spherical_quads,    <span class="cm"># (N, 5)</span>
+)</pre>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="built-connector">↓</div>
+
+      <div class="built-item reveal">
+        <div class="built-top"><span class="built-num">04</span><h3>Validation + Molecular Examples</h3><span class="status open">● PR #19 under review</span></div>
+        <div class="built-keywords">Tests &middot; Water &middot; Peptide</div>
+        <p class="built-desc">Five test modules cover analytical, gradient, and cross-representation checks. Two example notebooks apply the module to real MBIS-partitioned molecules.</p>
+        <div class="built-meta"><a href="#validation">See Validation →</a><a href="#examples">See Water + Peptide →</a></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 INSIDE THE IMPLEMENTATION ============ -->
+<section>
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">03 &middot; Inside the Implementation</div>
+      <h2>From moments to a validated field</h2>
+      <p class="dek">Every contribution above moves through the same pipeline — the conceptual backbone of the project.</p>
+    </div>
+
+    <div class="pipeline-strip reveal">
+      <span class="p-step">Multipole moments</span><span class="p-arrow">→</span>
+      <span class="p-step">Cartesian ↔ spherical</span><span class="p-arrow">→</span>
+      <span class="p-step">Potential</span><span class="p-arrow">→</span>
+      <span class="p-step">Field</span><span class="p-arrow">→</span>
+      <span class="p-step">Analysis</span><span class="p-arrow">→</span>
+      <span class="p-step">Validation</span>
+    </div>
+
+    <div class="story reveal">
+      <div class="story-eyebrow">Story 01</div>
+      <h4>The Stone Convention</h4>
+      <div class="story-grid">
+        <div class="sl">Convention</div><div class="sv">A spherical multipole moment means nothing without a fixed normalization convention — textbooks and force fields disagree on √3 factors, ordering, and trace handling.</div>
+        <div class="sl">Decision</div><div class="sv">Standardize on A. J. Stone's <em>Theory of Intermolecular Forces</em> convention — the same one AMOEBA-family force fields use.</div>
+        <div class="sl">Implementation</div><div class="sv">Fixed at every layer: storage in <code>MultipoleExpansion</code>, the conversion functions, <code>spherical_total_potential</code>, and the field path's conversion back to Cartesian.</div>
+        <div class="sl">Validation</div><div class="sv">Cartesian/spherical path-equivalence tests confirm both representations of the same physical multipole agree. Fixed for the quadrupole field specifically in commit <code>d160e72</code>, part of <a href="https://github.com/theochem/ffprime/pull/18" target="_blank" rel="noopener">PR #18</a>.</div>
+      </div>
+    </div>
+
+    <div class="story reveal">
+      <div class="story-eyebrow">Story 02</div>
+      <h4>The Quadrupole Field Correction</h4>
+      <div class="pull-quote">"A passing test is not the same as a correct derivative."</div>
+      <p style="font-size:14px;color:var(--ink-soft);max-width:600px;">Under the convention used by this implementation, the quadrupole potential is V&nbsp;=&nbsp;&Theta;<sub>ab</sub>r<sub>a</sub>r<sub>b</sub>/r&#8309;. A first-pass gradient missed that a symmetric &Theta; is contracted twice with <strong>r</strong> — off by exactly a factor of two.</p>
+      <div class="pipeline-strip small">
+        <span class="p-step">V = Θr·r/r⁵</span><span class="p-arrow">→</span>
+        <span class="p-step">E = −∇V</span><span class="p-arrow">→</span>
+        <span class="p-step">factor-of-two discrepancy</span><span class="p-arrow">→</span>
+        <span class="p-step">finite-difference check</span><span class="p-arrow">→</span>
+        <span class="p-step">correction</span>
+      </div>
+      <details class="inline mt">
+        <summary>View implementation <span class="chev">+</span></summary>
+        <div class="details-body">
+          <div class="code-wrap">
+            <button class="copy-btn" data-copy-target="code-quad">Copy</button>
+            <pre class="code" id="code-quad">term1 = 5 * Qrr[..., None] * r_vecs / safe_r[..., None] ** 7
+<span class="cm"># Theta is symmetric: d/dr_c(Theta_ab r_a r_b) picks up Theta_cb r_b
+# from BOTH the a=c and b=c contractions -- hence the factor of 2.</span>
+term2 = 2.0 * Qr / safe_r[..., None] ** 5  <span class="cm"># corrected factor of 2</span>
+return np.sum(term1 - term2, axis=1)</pre>
+          </div>
+          <div class="code-caption">Excerpt, <code>cartesian.py</code> — <code>quadrupole_field()</code>, verified symbolically and via finite differences in <code>test_multipole.py</code> and <code>test_cartesian_quadrupole_field.py</code>.</div>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 VALIDATION ============ -->
+<section id="validation">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">04 &middot; Validation</div>
+      <h2>Proving correctness, not just running code</h2>
+    </div>
+    <div class="check-row reveal">
+      <div class="check-item"><span class="tick">✓</span>Analytical</div>
+      <div class="check-item"><span class="tick">✓</span>Gradient</div>
+      <div class="check-item"><span class="tick">✓</span>Cartesian ↔ Spherical</div>
+      <div class="check-item"><span class="tick">✓</span>Edge cases</div>
+      <div class="check-item"><span class="tick">✓</span>Analysis</div>
+    </div>
+    <p class="prose reveal" style="font-size:14.5px;color:var(--ink-soft);">Five dedicated test modules cover the main validation categories — closed-form checks, finite-difference gradient consistency (E&nbsp;=&nbsp;&minus;&nabla;V), and agreement between the Cartesian and spherical evaluation paths — with shared utilities in <code>utils.py</code> handling singularity-safe edge cases rather than standing as a test module of its own. Exact pass/fail counts are reported inline in PR review discussion rather than independently reproduced, so no aggregate test-count figure is claimed on this page.</p>
+    <details class="box">
+      <summary>View tests <span class="chev">+</span></summary>
+      <div class="details-body">
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:9px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Analytical</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/tests/test_multipole.py" target="_blank" rel="noopener">test_multipole.py</a></div></div>
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:9px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Gradient</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/tests/test_cartesian_quadrupole_field.py" target="_blank" rel="noopener">test_cartesian_quadrupole_field.py</a></div></div>
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:9px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Equivalence</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/tests/test_path_equivalence.py" target="_blank" rel="noopener">test_path_equivalence.py</a></div></div>
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:9px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Edge cases</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/ffprime/electrostatics/utils.py" target="_blank" rel="noopener">utils.py</a></div></div>
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;margin-bottom:9px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Analysis</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/tests/test_analysis.py" target="_blank" rel="noopener">test_analysis.py</a></div></div>
+        <div class="kv" style="display:grid;grid-template-columns:160px 1fr;gap:8px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);">Spherical</div><div class="v" style="color:var(--ink-soft);"><a href="https://github.com/theochem/ffprime/blob/main/tests/test_spherical.py" target="_blank" rel="noopener">test_spherical.py</a></div></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ 05 WATER + PEPTIDE ============ -->
+<section id="examples">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">05 &middot; From Code to Molecule</div>
+      <h2>Water + peptide</h2>
+      <p class="dek">Both notebooks are part of <a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19</a> — opened, <strong>not yet merged</strong>.</p>
+    </div>
+    <div class="molecule-cols reveal">
+      <div class="molecule-card">
+        <div class="m-head"><h3>Water</h3><span class="status open">● Under review</span></div>
+        <div class="m-figure"><img src="assets/water.png" alt="Electrostatic potential of water evaluated with monopole, monopole plus dipole, and monopole plus dipole plus quadrupole expansions." loading="lazy" width="1800" height="470"></div><div class="m-figure-caption">Monopole → +dipole → +quadrupole electrostatic potential, water (a.u., Bohr)</div>
+        <p>MBIS atomic multipoles from <code>water.fchk</code> are evaluated progressively through a <code>MultipoleExpansion</code> — monopole, then monopole&nbsp;+&nbsp;dipole, then monopole&nbsp;+&nbsp;dipole&nbsp;+&nbsp;quadrupole — showing how each higher-order moment reshapes the electrostatic potential.</p>
+        <div class="m-links"><a href="https://github.com/theochem/ffprime/pull/19/files" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
+      </div>
+      <div class="molecule-card">
+        <div class="m-head"><h3>Peptide</h3><span class="status open">● Under review</span></div>
+        <div class="m-figure"><img src="assets/peptide.png" alt="Electrostatic potential of a peptide fragment evaluated with monopole, monopole plus dipole, and monopole plus dipole plus quadrupole expansions." loading="lazy" width="1800" height="470"></div><div class="m-figure-caption">Monopole → +dipole → +quadrupole electrostatic potential, peptide (a.u., Bohr)</div>
+        <p>The same monopole → dipole → quadrupole progression, demonstrated on a chemically larger and more heterogeneous peptide system — multiple residues, mixed polar/nonpolar environments — using <code>peptide.fchk</code>.</p>
+        <div class="m-links"><a href="https://github.com/theochem/ffprime/pull/19/files" target="_blank" rel="noopener">View notebook →</a><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">PR #19 →</a></div>
+      </div>
+    </div>
+    <p class="small-note mt">Water &rarr; peptide is a deliberate escalation in molecular complexity, not a claim about performance or scalability — no benchmarking data for either notebook exists in the repository.</p>
+  </div>
+</section>
+
+<!-- ============ 06 TIMELINE + PR LEDGER ============ -->
+<section id="timeline">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">06 &middot; Timeline &amp; Contributions</div>
+      <h2>From first PR to open review</h2>
+    </div>
+
+    <div class="timeline-h reveal">
+      <div class="tl-month">
+        <div class="tl-label">June 2026</div>
+        <h4>Core</h4>
+        <ul>
+          <li><a href="https://github.com/theochem/ffprime/pull/13" target="_blank" rel="noopener">#13</a> Cartesian core merged</li>
+          <li><a href="https://github.com/theochem/ffprime/pull/14" target="_blank" rel="noopener">#14</a> Validation + fixes merged</li>
+        </ul>
+      </div>
+      <div class="tl-month">
+        <div class="tl-label">July 2026</div>
+        <h4>Spherical + Validation</h4>
+        <ul>
+          <li><a href="https://github.com/theochem/ffprime/pull/15" target="_blank" rel="noopener">#15</a> Spherical representation merged</li>
+          <li><a href="https://github.com/theochem/ffprime/pull/18" target="_blank" rel="noopener">#18</a> Expansion, Stone fix &amp; analysis merged</li>
+        </ul>
+      </div>
+      <div class="tl-month">
+        <div class="tl-label">August 2026</div>
+        <h4>Examples + Review</h4>
+        <ul>
+          <li><a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">#19</a> Water &amp; peptide opened</li>
+          <li>Open as of this report</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="timeline-ledger" class="ledger mt reveal">
+      <div class="ledger-group-label">Merged</div>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/13" target="_blank" rel="noopener"><span class="ledger-num">#13</span><span class="ledger-title">Cartesian core</span><span class="status merged">✓ Merged</span></a>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/14" target="_blank" rel="noopener"><span class="ledger-num">#14</span><span class="ledger-title">Validation + fixes</span><span class="status merged">✓ Merged</span></a>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/15" target="_blank" rel="noopener"><span class="ledger-num">#15</span><span class="ledger-title">Spherical representation</span><span class="status merged">✓ Merged</span></a>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/18" target="_blank" rel="noopener"><span class="ledger-num">#18</span><span class="ledger-title">Expansion + analysis</span><span class="status merged">✓ Merged</span></a>
+      <div class="ledger-group-label">Under review</div>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener"><span class="ledger-num">#19</span><span class="ledger-title">Water + peptide examples</span><span class="status open">● Under review</span></a>
+      <div class="ledger-group-label">Closed / superseded</div>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/5" target="_blank" rel="noopener"><span class="ledger-num">#5</span><span class="ledger-title">Early dipole/quadrupole draft</span><span class="status closed">— Superseded</span></a>
+      <a class="ledger-row" href="https://github.com/theochem/ffprime/pull/11" target="_blank" rel="noopener"><span class="ledger-num">#11</span><span class="ledger-title">Early spherical conversions</span><span class="status closed">— Superseded</span></a>
+    </div>
+
+    <details class="box mt">
+      <summary>View full contribution history <span class="chev">+</span></summary>
+      <div class="details-body">
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--signal-ink);font-weight:600;">#13</div><div style="color:var(--ink-soft);">Adds <code>multipole.py</code> (monopole/dipole/quadrupole potential &amp; field, vectorized) + <code>test_multipole.py</code>. Merged Jun 12, 2026.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--signal-ink);font-weight:600;">#14</div><div style="color:var(--ink-soft);">Input-shape validation; corrects a quadrupole formula error. Merged Jun 23, 2026.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--signal-ink);font-weight:600;">#15</div><div style="color:var(--ink-soft);">Direct spherical dipole/quadrupole potential; splits module into <code>cartesian.py</code>/<code>spherical.py</code>. Reviewer feedback requested smaller PRs and <code>atcharges</code>/<code>atcoords</code> renaming to match IOData. Merged Jul 3, 2026.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--signal-ink);font-weight:600;">#18</div><div style="color:var(--ink-soft);">Adds <code>expansion.py</code>, <code>analysis.py</code>; fixes quadrupole field convention; renames to <code>at*</code> attributes; adds three test modules. Merged Jul 31, 2026.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--signal-ink);font-weight:600;">#19</div><div style="color:var(--ink-soft);">Adds <code>examples/multipole_water.ipynb</code>, <code>multipole_peptide.ipynb</code>, plus MBIS input/reference data. Opened Aug 2, 2026 — demonstration only.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;margin-bottom:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-weight:600;">#5</div><div style="color:var(--ink-soft);">Early dipole/quadrupole draft, closed the same day #13 merged — superseded by #13.</div></div>
+        <div class="kv" style="display:grid;grid-template-columns:60px 1fr;gap:10px;font-size:13.5px;"><div class="k" style="font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-weight:600;">#11</div><div style="color:var(--ink-soft);">Early Cartesian↔spherical conversion utilities, closed on GSoC start — functionality reintroduced via #15.</div></div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ 07 CHALLENGES + LEARNED ============ -->
+<section id="learnings">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">07 &middot; Challenges &amp; What I Learned</div>
+      <h2>Three lessons</h2>
+    </div>
+    <div class="lesson-list reveal">
+      <div class="lesson">
+        <div class="l-num">01</div>
+        <div>
+          <div class="l-eyebrow">Correctness</div>
+          <h4>"A passing test is not the same as a correct derivative."</h4>
+          <p>The quadrupole field's missing factor of 2 didn't fail loudly — it required deliberately checking E&nbsp;=&nbsp;&minus;&nabla;V against finite differences rather than trusting a formula "looked right." Fixed in commit <code>d160e72</code>, verified in <code>test_cartesian_quadrupole_field.py</code>.</p>
+        </div>
+      </div>
+      <div class="lesson">
+        <div class="l-num">02</div>
+        <div>
+          <div class="l-eyebrow">Conventions</div>
+          <h4>"Scientific conventions become software contracts."</h4>
+          <p>Adopting Stone's convention explicitly — and propagating it through conversion, evaluation, and tests — mattered more to correctness than any single function's implementation.</p>
+        </div>
+      </div>
+      <div class="lesson">
+        <div class="l-num">03</div>
+        <div>
+          <div class="l-eyebrow">Review</div>
+          <h4>"Open-source review changes how you scope work."</h4>
+          <p>Reviewer feedback on PR #15's size and naming led directly to smaller, more focused PRs afterward, and to renaming attributes to match IOData's <code>at</code>-prefixed convention.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 08 FINAL REFLECTION + ACK ============ -->
+<section>
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">08 &middot; Final Reflection</div>
+    </div>
+    <div class="reflect-flow reveal">
+      <div class="reflect-row"><div class="reflect-label">Before</div><p>Atomic moments existed without a downstream way to evaluate an electrostatic potential or field, and no spherical-harmonic representation to interoperate with the rest of the force-field literature.</p></div>
+      <div class="reflect-row"><div class="reflect-label">During</div><p>Cartesian &rarr; spherical &rarr; potential &rarr; field &rarr; analysis &rarr; validation — built outward from a vectorized core, under an explicit convention, with tests designed to catch the errors a passing suite can hide.</p></div>
+      <div class="reflect-row"><div class="reflect-label">After</div><p>A tested, reviewed, merged multipole electrostatics package spanning both representations, with two molecular demonstrations in active review.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="prose">
+      <h3 style="font-size:17px; margin-bottom:6px;">Acknowledgements</h3>
+      <p style="font-size:13.5px;">Completed as part of Google Summer of Code 2026, under the Theochem organization, on the FFPrime repository. Thanks to my mentors — Professor Esteban Vohringer, Carlos, and Omid Hosseinzadeh — for their guidance throughout the project, to the FFPrime maintainers and reviewers who engaged directly with this contribution on GitHub — ccastilloo, FarnazH, and ohzde — and to the broader Theochem community and Google Summer of Code for the opportunity.</p>
+    </div>
+    <div class="ack-row">
+      <span>Google Summer of Code</span><span>·</span>
+      <span>Theochem</span><span>·</span>
+      <span>FFPrime</span><span>·</span>
+      <span>Mentors</span><span>·</span>
+      <span>Reviewers</span><span>·</span>
+      <span>Community</span>
+    </div>
+    <div class="footer-bottom">
+      <span>Harsh Jha &middot; GSoC 2026 &middot; Theochem / FFPrime</span>
+      <span><a href="https://github.com/theochem/ffprime/pull/13" target="_blank" rel="noopener">#13</a> &middot; <a href="https://github.com/theochem/ffprime/pull/14" target="_blank" rel="noopener">#14</a> &middot; <a href="https://github.com/theochem/ffprime/pull/15" target="_blank" rel="noopener">#15</a> &middot; <a href="https://github.com/theochem/ffprime/pull/18" target="_blank" rel="noopener">#18</a> &middot; <a href="https://github.com/theochem/ffprime/pull/19" target="_blank" rel="noopener">#19</a></span>
+    </div>
+  </div>
+</footer>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var progress = document.getElementById('progress');
+  function onScroll(){
+    var h = document.documentElement;
+    var scrollTop = h.scrollTop || document.body.scrollTop;
+    var height = h.scrollHeight - h.clientHeight;
+    var pct = height > 0 ? (scrollTop / height) * 100 : 0;
+    progress.style.width = pct + '%';
+  }
+  document.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  /* mobile drawer */
+  var toggle = document.getElementById('navToggle');
+  var rail = document.getElementById('rail');
+  var scrim = document.getElementById('scrim');
+  function closeDrawer(){
+    rail.classList.remove('open');
+    scrim.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+  function openDrawer(){
+    rail.classList.add('open');
+    scrim.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+  toggle.addEventListener('click', function(){
+    rail.classList.contains('open') ? closeDrawer() : openDrawer();
+  });
+  scrim.addEventListener('click', closeDrawer);
+  document.querySelectorAll('#railList a').forEach(function(a){
+    a.addEventListener('click', closeDrawer);
+  });
+
+  /* scrollspy: highlight active rail link */
+  var sections = Array.prototype.slice.call(document.querySelectorAll('section[id]'));
+  var links = document.querySelectorAll('#railList a');
+  function setActive(id){
+    links.forEach(function(a){
+      a.classList.toggle('active', a.getAttribute('data-target') === id);
+    });
+  }
+  if ('IntersectionObserver' in window){
+    var spy = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    sections.forEach(function(s){ spy.observe(s); });
+  }
+
+  /* reveal-on-scroll */
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reveals = document.querySelectorAll('.reveal');
+  if (reduceMotion || !('IntersectionObserver' in window)){
+    reveals.forEach(function(el){ el.classList.add('in-view'); });
+  } else {
+    var ro = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting){
+          entry.target.classList.add('in-view');
+          ro.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -6% 0px' });
+    reveals.forEach(function(el){ ro.observe(el); });
+    /* hero reveals immediately on load */
+    document.querySelectorAll('.hero .reveal').forEach(function(el, i){
+      setTimeout(function(){ el.classList.add('in-view'); }, i * 90);
+    });
+  }
+
+  /* copy-to-clipboard on code blocks */
+  document.querySelectorAll('.copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var targetId = btn.getAttribute('data-copy-target');
+      var codeEl = document.getElementById(targetId);
+      if (!codeEl) return;
+      var text = codeEl.innerText;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(function(){
+          btn.textContent = 'Copied';
+          btn.classList.add('copied');
+          setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+        });
+      }
+    });
+  });
+})();
+</script>
