@@ -1,6 +1,6 @@
 # GSoC 2026 — Multipole Electrostatics in FFPrime
 
-Final work product for Google Summer of Code 2026 with Theochem.
+Final work product for Google Summer of Code 2026 with QC-Devs.
 
 ## Final Report
 
@@ -16,11 +16,11 @@ Harsh Jha
 
 ## Organization
 
-Theochem
+QC-Devs
 
 ## Upstream Repository
 
-https://github.com/theochem/ffprime
+[FFPrime on GitHub](https://github.com/theochem/ffprime)
 
 ---
 
