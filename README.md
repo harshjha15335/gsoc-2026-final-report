@@ -20,7 +20,7 @@ QC-Devs
 
 ## Upstream Repository
 
-[FFPrime on GitHub](https://github.com/theochem/ffprime)
+https://github.com/theochem/ffprime
 
 ---
 
